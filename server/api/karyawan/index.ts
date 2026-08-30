@@ -9,7 +9,7 @@ import {
 import { put, del } from "@vercel/blob";
 import crypto from "node:crypto";
 import bcrypt from "bcrypt";
-import { Prisma } from "../../../generated/prisma/client";
+import { Prisma } from "@prisma/client";
 import { db } from "../../utils/db";
 import { requireOwner } from "../../utils/auth";
 

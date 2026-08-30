@@ -4,7 +4,7 @@ import crypto from "node:crypto";
 import { db } from "../../utils/db";
 import { rateLimitByIpAndIdentifier } from "../../utils/rateLimiter";
 import { sendEmail } from "../../utils/mailer";
-import { Role } from "../../../generated/prisma/client";
+import { Role } from "@prisma/client";
 
 const MAX_EMAIL_LEN = 255;
 const TOKEN_TTL_MS = 30 * 60 * 1000;

@@ -8,7 +8,7 @@ import {
 } from "h3";
 import { put, del } from "@vercel/blob";
 import crypto from "node:crypto";
-import { Prisma } from "../../../generated/prisma/client";
+import { Prisma } from "@prisma/client";
 import { db } from "../../utils/db";
 import { requireUser, requireOwner } from "../../utils/auth";
 

@@ -2,7 +2,7 @@
 import { defineEventHandler, getMethod, getQuery, readBody, createError } from "h3"
 import { db } from "../../utils/db"
 import { requireUser, requireOwner } from "../../utils/auth"
-import { Prisma } from "../../../generated/prisma/client"
+import { Prisma } from "@prisma/client"
 
 const validNamePattern = /^[a-zA-Z0-9\s&\-/()]+$/
 const MAX_NAME_LEN = 100
