@@ -15,4 +15,12 @@ export default defineNuxtConfig({
   supabase: {
     redirect: false,
   },
+  nitro: {
+    experimental: {
+      wasm: true,
+    },
+    externals: {
+      inline: ['@prisma/client'],
+    },
+  },
 });
