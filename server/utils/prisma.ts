@@ -1,21 +1,5 @@
 import 'dotenv/config'
 import { PrismaClient } from '../../generated/prisma/client'
-import { PrismaPg } from '@prisma/adapter-pg'
-import pg from 'pg'
-
-const connectionString = process.env.DATABASE_URL
-
-if (!connectionString) {
-  throw new Error('FATAL: DATABASE_URL tidak ditemukan di environment variables.')
-}
-
-const pool = new pg.Pool({ connectionString })
-
-pool.on('error', (err) => {
-  console.error('[prisma] Unexpected error on idle PostgreSQL client:', err)
-})
-
-const adapter = new PrismaPg(pool)
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient
@@ -24,7 +8,6 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma =
   globalForPrisma.prisma ||
   new PrismaClient({
-    adapter,
     log:
       process.env.NODE_ENV === 'development'
         ? ['query', 'error', 'warn']
@@ -43,7 +26,6 @@ async function shutdown(signal: string) {
   console.log(`[prisma] Menerima ${signal}, menutup koneksi database...`)
   try {
     await prisma.$disconnect()
-    await pool.end()
   } catch (err) {
     console.error('[prisma] Error saat shutdown:', err)
   } finally {
