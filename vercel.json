@@ -1,7 +1,0 @@
-{
-  "functions": {
-    "**/*.mjs": {
-      "includeFiles": "generated/prisma/**"
-    }
-  }
-}
