@@ -2,7 +2,7 @@
 import { defineEventHandler, getRouterParam, createError } from "h3";
 import { db } from "../../utils/db";
 import { requireUser } from "../../utils/auth";
-import { Role } from "../../../generated/prisma/enums";
+import { Role } from "../../../generated/prisma/client";
 
 // Cek apakah sebuah Date jatuh pada hari kalender yang sama dengan hari ini,
 // dihitung berdasarkan WIB (UTC+7), supaya konsisten dengan scope "hari ini"

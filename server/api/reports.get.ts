@@ -2,7 +2,7 @@
 import { defineEventHandler, getMethod, getQuery, createError } from "h3";
 import { db } from "../utils/db";
 import { requireOwner } from "../utils/auth";
-import { OrderStatus, PaymentMethod } from "../../generated/prisma/enums";
+import { OrderStatus, PaymentMethod } from "../../generated/prisma/client";
 
 const MAX_PAGE_SIZE = 100;
 const DEFAULT_PAGE_SIZE = 20;

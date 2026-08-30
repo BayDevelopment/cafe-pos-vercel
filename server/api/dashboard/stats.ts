@@ -2,7 +2,7 @@
 import { defineEventHandler, createError } from "h3"
 import { db } from "../../utils/db"
 import { requireUser } from "../../utils/auth"
-import { Role } from "../../../generated/prisma/enums"
+import { Role } from "../../../generated/prisma/client"
 
 export default defineEventHandler(async (event) => {
   // Wajib login (Kasir & Pemilik boleh akses) — dicek DI LUAR try/catch data,

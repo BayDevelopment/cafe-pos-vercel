@@ -2,7 +2,7 @@
 import { defineEventHandler, getRouterParam, createError } from "h3";
 import { db } from "../../utils/db";
 import { requireOwner } from "../../utils/auth";
-import { OrderStatus } from "../../../generated/prisma/enums";
+import { OrderStatus } from "../../../generated/prisma/client";
 
 const STOCK_RETURNED_STATUSES: OrderStatus[] = [OrderStatus.CANCELLED, OrderStatus.REFUNDED];
 

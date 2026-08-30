@@ -2,7 +2,7 @@ import type { H3Event } from "h3";
 import { getCookie, getHeader, deleteCookie, createError } from "h3";
 import jwt from "jsonwebtoken";
 import { db } from "./db";
-import { Role } from "../../generated/prisma/enums";
+import { Role } from '../../generated/prisma/client'
 
 export interface AuthUser {
   id: string;

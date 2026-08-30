@@ -2,7 +2,7 @@
 import { defineEventHandler, getMethod, readBody, createError } from "h3";
 import { db } from "../../utils/db";
 import { requireUser } from "../../utils/auth";
-import { PaymentMethod } from "../../../generated/prisma/enums";
+import { PaymentMethod } from "../../../generated/prisma/client";
 import { Prisma } from "../../../generated/prisma/client";
 
 const MAX_ITEMS = 100;
