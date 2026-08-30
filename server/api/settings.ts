@@ -1,8 +1,13 @@
 // server/api/settings.ts
-import { defineEventHandler, getMethod, readMultipartFormData, createError } from "h3";
+import {
+  defineEventHandler,
+  getMethod,
+  readMultipartFormData,
+  createError,
+} from "h3";
 import { db } from "../utils/db";
 import { requireOwner } from "../utils/auth";
-import { getStore } from "@netlify/blobs";
+import { put, del } from "@vercel/blob";
 import crypto from "node:crypto";
 
 const MAX_LOGO_SIZE = 1 * 1024 * 1024; // 1 MB
@@ -15,25 +20,33 @@ const MAX_PHONE_LEN = 20;
 
 const PHONE_REGEX = /^[0-9+()\-\s]{6,20}$/;
 
-// Nama store Blob — namespace khusus logo toko
-const LOGO_STORE_NAME = "shop-logos";
-
 function detectImageType(buffer: Buffer): "jpg" | "png" | "webp" | null {
   if (buffer.length < 12) return null;
-
-  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return "jpg";
-
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff)
+    return "jpg";
   if (
-    buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47 &&
-    buffer[4] === 0x0d && buffer[5] === 0x0a && buffer[6] === 0x1a && buffer[7] === 0x0a
-  ) return "png";
-
-  if (buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP") return "webp";
-
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a
+  )
+    return "png";
+  if (
+    buffer.toString("ascii", 0, 4) === "RIFF" &&
+    buffer.toString("ascii", 8, 12) === "WEBP"
+  )
+    return "webp";
   return null;
 }
 
-function extMatchesDetectedType(ext: string, detected: "jpg" | "png" | "webp"): boolean {
+function extMatchesDetectedType(
+  ext: string,
+  detected: "jpg" | "png" | "webp",
+): boolean {
   if (detected === "jpg") return ext === ".jpg" || ext === ".jpeg";
   if (detected === "png") return ext === ".png";
   if (detected === "webp") return ext === ".webp";
@@ -70,7 +83,9 @@ export default defineEventHandler(async (event) => {
   }
 
   if (method === "GET") {
-    let settings = await db.shopSettings.findUnique({ where: { id: "GLOBAL_SETTINGS" } });
+    let settings = await db.shopSettings.findUnique({
+      where: { id: "GLOBAL_SETTINGS" },
+    });
 
     if (!settings) {
       settings = await db.shopSettings.create({
@@ -91,66 +106,72 @@ export default defineEventHandler(async (event) => {
   if (method === "POST" || method === "PUT") {
     const files = await readMultipartFormData(event);
 
-    // Inisialisasi Netlify Blobs dengan kredensial Environment Variables
-    const logoStore = getStore({
-      name: LOGO_STORE_NAME,
-      siteID: process.env.NETLIFY_SITE_ID,
-      token: process.env.NETLIFY_AUTH_TOKEN,
-      consistency: "strong",
-    });
-
     let shopName = "";
     let description = "";
     let address = "";
     let phone = "";
     let logoUrl: string | undefined = undefined;
-    let savedBlobKey: string | null = null;
+    let savedBlobUrl: string | null = null; // simpan full URL, bukan key, karena del() Vercel butuh URL
 
     if (files) {
       for (const file of files) {
-        if (file.name === "shop_name") shopName = file.data.toString("utf8").trim();
-        if (file.name === "description") description = file.data.toString("utf8").trim();
-        if (file.name === "address") address = file.data.toString("utf8").trim();
+        if (file.name === "shop_name")
+          shopName = file.data.toString("utf8").trim();
+        if (file.name === "description")
+          description = file.data.toString("utf8").trim();
+        if (file.name === "address")
+          address = file.data.toString("utf8").trim();
         if (file.name === "phone") phone = file.data.toString("utf8").trim();
 
         if (file.name === "logo" && file.filename && file.data.length > 0) {
           if (file.data.length > MAX_LOGO_SIZE) {
-            throw createError({ statusCode: 400, message: "Ukuran file logo terlalu besar. Batas maksimal adalah 1 MB." });
+            throw createError({
+              statusCode: 400,
+              message:
+                "Ukuran file logo terlalu besar. Batas maksimal adalah 1 MB.",
+            });
           }
 
           const dotIndex = file.filename.lastIndexOf(".");
-          const ext = dotIndex >= 0 ? file.filename.slice(dotIndex).toLowerCase() : "";
+          const ext =
+            dotIndex >= 0 ? file.filename.slice(dotIndex).toLowerCase() : "";
           if (!ALLOWED_EXT.includes(ext)) {
-            throw createError({ statusCode: 400, message: "Format file tidak sah. Hanya file berformat .jpg, .jpeg, .png, atau .webp yang diizinkan." });
+            throw createError({
+              statusCode: 400,
+              message:
+                "Format file tidak sah. Hanya file berformat .jpg, .jpeg, .png, atau .webp yang diizinkan.",
+            });
           }
 
           const detected = detectImageType(file.data);
           if (!detected || !extMatchesDetectedType(ext, detected)) {
-            throw createError({ statusCode: 400, message: "Isi file tidak sesuai dengan format gambar yang diklaim." });
+            throw createError({
+              statusCode: 400,
+              message:
+                "Isi file tidak sesuai dengan format gambar yang diklaim.",
+            });
           }
 
-          // Key acak & unik — dipakai sebagai "nama file" di dalam Blob store.
           const key = `logo_${Date.now()}_${crypto.randomBytes(8).toString("hex")}${ext}`;
 
-          const arrayBuffer = file.data.buffer.slice(
-            file.data.byteOffset,
-            file.data.byteOffset + file.data.byteLength
-          ) as ArrayBuffer;
-
-          await logoStore.set(key, arrayBuffer, {
-            metadata: { contentType: contentTypeFor(ext) },
+          const blob = await put(key, file.data, {
+            access: "public",
+            contentType: contentTypeFor(ext),
+            addRandomSuffix: false,
+            token: process.env.BLOB_READ_WRITE_TOKEN,
           });
 
-          savedBlobKey = key;
-          // Disajikan lewat route server/routes/logo/[key].get.ts
-          logoUrl = `/logo/${key}`;
+          savedBlobUrl = blob.url;
+          logoUrl = blob.url; // langsung URL publik Vercel, tidak perlu proxy endpoint lagi
         }
       }
     }
 
     const cleanupUploadedBlobOnError = async () => {
-      if (savedBlobKey) {
-        await logoStore.delete(savedBlobKey).catch(() => { });
+      if (savedBlobUrl) {
+        await del(savedBlobUrl, {
+          token: process.env.BLOB_READ_WRITE_TOKEN,
+        }).catch(() => {});
       }
     };
 
@@ -160,43 +181,60 @@ export default defineEventHandler(async (event) => {
     }
     if (shopName.length > MAX_SHOP_NAME_LEN) {
       await cleanupUploadedBlobOnError();
-      throw createError({ statusCode: 400, message: `Nama toko tidak boleh melebihi ${MAX_SHOP_NAME_LEN} karakter.` });
+      throw createError({
+        statusCode: 400,
+        message: `Nama toko tidak boleh melebihi ${MAX_SHOP_NAME_LEN} karakter.`,
+      });
     }
     if (description.length > MAX_DESCRIPTION_LEN) {
       await cleanupUploadedBlobOnError();
-      throw createError({ statusCode: 400, message: `Deskripsi tidak boleh melebihi ${MAX_DESCRIPTION_LEN} karakter.` });
+      throw createError({
+        statusCode: 400,
+        message: `Deskripsi tidak boleh melebihi ${MAX_DESCRIPTION_LEN} karakter.`,
+      });
     }
     if (address.length > MAX_ADDRESS_LEN) {
       await cleanupUploadedBlobOnError();
-      throw createError({ statusCode: 400, message: `Alamat tidak boleh melebihi ${MAX_ADDRESS_LEN} karakter.` });
+      throw createError({
+        statusCode: 400,
+        message: `Alamat tidak boleh melebihi ${MAX_ADDRESS_LEN} karakter.`,
+      });
     }
 
     if (phone) {
       if (phone.length > MAX_PHONE_LEN) {
         await cleanupUploadedBlobOnError();
-        throw createError({ statusCode: 400, message: `Nomor telepon tidak boleh melebihi ${MAX_PHONE_LEN} karakter.` });
+        throw createError({
+          statusCode: 400,
+          message: `Nomor telepon tidak boleh melebihi ${MAX_PHONE_LEN} karakter.`,
+        });
       }
       if (!PHONE_REGEX.test(phone)) {
         await cleanupUploadedBlobOnError();
-        throw createError({ statusCode: 400, message: "Format nomor telepon tidak valid." });
+        throw createError({
+          statusCode: 400,
+          message: "Format nomor telepon tidak valid.",
+        });
       }
 
-      // Cek apakah nomor telepon sudah digunakan oleh akun karyawan/user
-      const existingUserPhone = await db.employee.findFirst({
+      const existingEmployeePhone = await db.employee.findFirst({
         where: { phone: phone },
         select: { id: true },
       });
 
-      if (existingUserPhone) {
+      if (existingEmployeePhone) {
         await cleanupUploadedBlobOnError();
         throw createError({
           statusCode: 400,
-          message: "Nomor telepon ini sudah terdaftar sebagai nomor HP karyawan.",
+          message:
+            "Nomor telepon ini sudah terdaftar sebagai nomor HP karyawan.",
         });
       }
     }
 
-    const existing = await db.shopSettings.findUnique({ where: { id: "GLOBAL_SETTINGS" } });
+    const existing = await db.shopSettings.findUnique({
+      where: { id: "GLOBAL_SETTINGS" },
+    });
     const oldLogoUrl = existing?.logoUrl || null;
 
     let updatedSettings;
@@ -222,13 +260,16 @@ export default defineEventHandler(async (event) => {
     } catch (err) {
       await cleanupUploadedBlobOnError();
       console.error("Gagal menyimpan pengaturan toko:", err);
-      throw createError({ statusCode: 500, message: "Gagal menyimpan pengaturan. Silakan coba lagi." });
+      throw createError({
+        statusCode: 500,
+        message: "Gagal menyimpan pengaturan. Silakan coba lagi.",
+      });
     }
 
-    // Hapus logo lama dari Blob store setelah logo baru berhasil masuk ke DB
-    if (logoUrl && oldLogoUrl && oldLogoUrl !== logoUrl && oldLogoUrl.startsWith("/logo/")) {
-      const oldKey = oldLogoUrl.replace("/logo/", "");
-      logoStore.delete(oldKey).catch(() => { });
+    if (logoUrl && oldLogoUrl && oldLogoUrl !== logoUrl) {
+      del(oldLogoUrl, { token: process.env.BLOB_READ_WRITE_TOKEN }).catch(
+        () => {},
+      );
     }
 
     return {

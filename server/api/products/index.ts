@@ -1,7 +1,12 @@
 // server/api/products/index.ts
-import { defineEventHandler, getMethod, getQuery, readMultipartFormData, createError } from "h3";
-import fs from "node:fs/promises";
-import path from "node:path";
+import {
+  defineEventHandler,
+  getMethod,
+  getQuery,
+  readMultipartFormData,
+  createError,
+} from "h3";
+import { put, del } from "@vercel/blob";
 import crypto from "node:crypto";
 import { Prisma } from "../../../generated/prisma/client";
 import { db } from "../../utils/db";
@@ -12,7 +17,6 @@ const DEFAULT_LIMIT = 10;
 const MAX_IMAGE_SIZE = 1 * 1024 * 1024; // 1 MB
 const MAX_NAME_LEN = 200;
 const MAX_SKU_LEN = 50;
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 
 // Pengecekan Magic Byte Asli (PNG, JPEG, WebP)
 function getMimeTypeFromBuffer(buffer: Buffer): string | null {
@@ -20,7 +24,8 @@ function getMimeTypeFromBuffer(buffer: Buffer): string | null {
   const hex = buffer.toString("hex", 0, 12).toUpperCase();
   if (hex.startsWith("89504E47")) return "image/png";
   if (hex.startsWith("FFD8FF")) return "image/jpeg";
-  if (hex.startsWith("52494646") && hex.substring(16, 24) === "57454250") return "image/webp";
+  if (hex.startsWith("52494646") && hex.substring(16, 24) === "57454250")
+    return "image/webp";
   return null;
 }
 
@@ -36,12 +41,20 @@ export default defineEventHandler(async (event) => {
     try {
       const query = getQuery(event);
       const page = Math.max(1, Number(query.page) || 1);
-      const limit = Math.min(MAX_LIMIT, Math.max(1, Number(query.limit) || DEFAULT_LIMIT));
+      const limit = Math.min(
+        MAX_LIMIT,
+        Math.max(1, Number(query.limit) || DEFAULT_LIMIT),
+      );
       const skip = (page - 1) * limit;
 
-      const search = query.search ? String(query.search).trim().slice(0, 100) : "";
+      const search = query.search
+        ? String(query.search).trim().slice(0, 100)
+        : "";
       const rawCategoryId = query.category ? Number(query.category) : null;
-      const categoryId = rawCategoryId && Number.isInteger(rawCategoryId) && rawCategoryId > 0 ? rawCategoryId : null;
+      const categoryId =
+        rawCategoryId && Number.isInteger(rawCategoryId) && rawCategoryId > 0
+          ? rawCategoryId
+          : null;
 
       let isActive: boolean | undefined;
       if (query.status === "true") isActive = true;
@@ -96,7 +109,10 @@ export default defineEventHandler(async (event) => {
     } catch (error: any) {
       if (error?.statusCode) throw error;
       console.error("Gagal mengambil data produk:", error);
-      throw createError({ statusCode: 500, message: "Gagal mengambil data produk." });
+      throw createError({
+        statusCode: 500,
+        message: "Gagal mengambil data produk.",
+      });
     }
   }
 
@@ -140,54 +156,90 @@ export default defineEventHandler(async (event) => {
     }
 
     if (!name) {
-      throw createError({ statusCode: 400, message: "Nama produk wajib diisi." });
+      throw createError({
+        statusCode: 400,
+        message: "Nama produk wajib diisi.",
+      });
     }
     if (name.length > MAX_NAME_LEN) {
-      throw createError({ statusCode: 400, message: `Nama produk tidak boleh melebihi ${MAX_NAME_LEN} karakter.` });
+      throw createError({
+        statusCode: 400,
+        message: `Nama produk tidak boleh melebihi ${MAX_NAME_LEN} karakter.`,
+      });
     }
     if (sku.length > MAX_SKU_LEN) {
-      throw createError({ statusCode: 400, message: `SKU tidak boleh melebihi ${MAX_SKU_LEN} karakter.` });
+      throw createError({
+        statusCode: 400,
+        message: `SKU tidak boleh melebihi ${MAX_SKU_LEN} karakter.`,
+      });
     }
 
     const categoryId = Number(categoryIdRaw);
     if (!Number.isInteger(categoryId) || categoryId <= 0) {
-      throw createError({ statusCode: 400, message: "Kategori wajib dipilih." });
+      throw createError({
+        statusCode: 400,
+        message: "Kategori wajib dipilih.",
+      });
     }
 
     const price = Number(priceRaw);
     if (!Number.isFinite(price) || price <= 0) {
-      throw createError({ statusCode: 400, message: "Harga jual wajib berupa angka lebih dari 0." });
+      throw createError({
+        statusCode: 400,
+        message: "Harga jual wajib berupa angka lebih dari 0.",
+      });
     }
 
     const costPrice = costPriceRaw ? Number(costPriceRaw) : 0;
     if (!Number.isFinite(costPrice) || costPrice < 0) {
-      throw createError({ statusCode: 400, message: "Harga modal harus berupa angka dan tidak boleh negatif." });
+      throw createError({
+        statusCode: 400,
+        message: "Harga modal harus berupa angka dan tidak boleh negatif.",
+      });
     }
 
     const discount = discountRaw ? Number(discountRaw) : 0;
     if (!Number.isFinite(discount) || discount < 0) {
-      throw createError({ statusCode: 400, message: "Diskon produk harus berupa angka dan tidak boleh negatif." });
+      throw createError({
+        statusCode: 400,
+        message: "Diskon produk harus berupa angka dan tidak boleh negatif.",
+      });
     }
     if (discount > price) {
-      throw createError({ statusCode: 400, message: "Diskon tidak boleh melebihi harga jual produk." });
+      throw createError({
+        statusCode: 400,
+        message: "Diskon tidak boleh melebihi harga jual produk.",
+      });
     }
 
     const stock = stockRaw ? Number(stockRaw) : 0;
     if (!Number.isInteger(stock) || stock < 0) {
-      throw createError({ statusCode: 400, message: "Stok harus berupa bilangan bulat dan tidak boleh negatif." });
+      throw createError({
+        statusCode: 400,
+        message: "Stok harus berupa bilangan bulat dan tidak boleh negatif.",
+      });
     }
 
-    const categoryExists = await db.category.findUnique({ where: { id: categoryId }, select: { id: true } });
+    const categoryExists = await db.category.findUnique({
+      where: { id: categoryId },
+      select: { id: true },
+    });
     if (!categoryExists) {
-      throw createError({ statusCode: 400, message: "Kategori tidak ditemukan." });
+      throw createError({
+        statusCode: 400,
+        message: "Kategori tidak ditemukan.",
+      });
     }
 
     let imagePath: string | null = null;
-    let savedFilePath: string | null = null;
+    let savedBlobUrl: string | null = null;
 
     if (uploadedFile) {
       if (uploadedFile.data.length > MAX_IMAGE_SIZE) {
-        throw createError({ statusCode: 400, message: "Ukuran gambar terlalu besar. Maksimal 1 MB." });
+        throw createError({
+          statusCode: 400,
+          message: "Ukuran gambar terlalu besar. Maksimal 1 MB.",
+        });
       }
 
       const detectedMime = getMimeTypeFromBuffer(uploadedFile.data);
@@ -195,7 +247,8 @@ export default defineEventHandler(async (event) => {
       if (!detectedMime || !allowedMimes.includes(detectedMime)) {
         throw createError({
           statusCode: 400,
-          message: "File yang diunggah bukan gambar valid (Hanya PNG, JPG/JPEG, & WEBP yang diizinkan).",
+          message:
+            "File yang diunggah bukan gambar valid (Hanya PNG, JPG/JPEG, & WEBP yang diizinkan).",
         });
       }
 
@@ -203,18 +256,25 @@ export default defineEventHandler(async (event) => {
       if (detectedMime === "image/png") safeExtension = ".png";
       if (detectedMime === "image/webp") safeExtension = ".webp";
 
-      const randomFileName = `${Date.now()}-${crypto.randomBytes(8).toString("hex")}${safeExtension}`;
+      const randomFileName = `product-${Date.now()}-${crypto.randomBytes(8).toString("hex")}${safeExtension}`;
 
-      await fs.mkdir(UPLOAD_DIR, { recursive: true });
-      const fullPath = path.join(UPLOAD_DIR, randomFileName);
+      const blob = await put(randomFileName, uploadedFile.data, {
+        access: "public",
+        contentType: detectedMime,
+        addRandomSuffix: false,
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      });
 
-      await fs.writeFile(fullPath, uploadedFile.data);
-      savedFilePath = fullPath;
-      imagePath = `/uploads/${randomFileName}`;
+      savedBlobUrl = blob.url;
+      imagePath = blob.url;
     }
 
     const cleanupUploadedFile = async () => {
-      if (savedFilePath) await fs.unlink(savedFilePath).catch(() => {});
+      if (savedBlobUrl) {
+        await del(savedBlobUrl, {
+          token: process.env.BLOB_READ_WRITE_TOKEN,
+        }).catch(() => {});
+      }
     };
 
     try {
@@ -248,15 +308,24 @@ export default defineEventHandler(async (event) => {
 
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === "P2002") {
-          throw createError({ statusCode: 409, message: "Produk atau SKU ini sudah terdaftar di database." });
+          throw createError({
+            statusCode: 409,
+            message: "Produk atau SKU ini sudah terdaftar di database.",
+          });
         }
         if (error.code === "P2003") {
-          throw createError({ statusCode: 400, message: "Kategori tidak valid." });
+          throw createError({
+            statusCode: 400,
+            message: "Kategori tidak valid.",
+          });
         }
       }
 
       console.error("Gagal menambah produk:", error);
-      throw createError({ statusCode: 500, message: "Gagal menambah produk. Silakan coba lagi." });
+      throw createError({
+        statusCode: 500,
+        message: "Gagal menambah produk. Silakan coba lagi.",
+      });
     }
   }
 

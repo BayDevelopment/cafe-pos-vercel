@@ -16,6 +16,8 @@ function wibDayEndUtc(dateStr: string): Date {
 
 const ALLOWED_STATUS = ["PENDING", "PAID", "CANCELLED", "REFUNDED"];
 const ALLOWED_PAYMENT = ["CASH", "QRIS", "DEBIT", "KREDIT", "TRANSFER"];
+// Status yang berarti "stok sudah dikembalikan ke inventory / pesanan tidak jadi"
+const STOCK_RETURNED_STATUSES = ["CANCELLED", "REFUNDED"];
 
 export default defineEventHandler(async (event) => {
     const authUser = await requireUser(event);
@@ -26,7 +28,10 @@ export default defineEventHandler(async (event) => {
         throw createError({ statusCode: 400, statusMessage: "ID transaksi tidak valid." });
     }
 
-    const order = await db.order.findUnique({ where: { id } });
+    const order = await db.order.findUnique({
+        where: { id },
+        include: { orderItems: true },
+    });
     if (!order) {
         throw createError({ statusCode: 404, statusMessage: "Transaksi tidak ditemukan." });
     }
@@ -55,12 +60,13 @@ export default defineEventHandler(async (event) => {
     const updateData: Record<string, any> = {};
 
     // --- Field yang boleh diedit KASIR maupun PEMILIK ---
+    let newStatus: string | undefined;
     if (body.status !== undefined) {
-        const status = String(body.status).toUpperCase();
-        if (!ALLOWED_STATUS.includes(status)) {
+        newStatus = String(body.status).toUpperCase();
+        if (!ALLOWED_STATUS.includes(newStatus)) {
             throw createError({ statusCode: 400, statusMessage: "Status tidak valid." });
         }
-        updateData.status = status;
+        updateData.status = newStatus;
     }
 
     if (body.customerName !== undefined) {
@@ -110,14 +116,50 @@ export default defineEventHandler(async (event) => {
         throw createError({ statusCode: 400, statusMessage: "Tidak ada perubahan yang dikirim." });
     }
 
+    // --- Tentukan apakah perlu penyesuaian stok akibat perubahan status ---
+    const oldWasReturned = STOCK_RETURNED_STATUSES.includes(order.status);
+    const newIsReturned = newStatus ? STOCK_RETURNED_STATUSES.includes(newStatus) : oldWasReturned;
+
+    // true  = stok perlu DIKEMBALIKAN (baru saja jadi CANCELLED/REFUNDED, sebelumnya bukan)
+    // false = stok perlu DIPOTONG LAGI (sebelumnya CANCELLED/REFUNDED, sekarang diaktifkan lagi)
+    // null  = tidak ada perubahan status yang mempengaruhi stok
+    let stockAdjustment: "return" | "deduct" | null = null;
+    if (newStatus && newIsReturned !== oldWasReturned) {
+        stockAdjustment = newIsReturned ? "return" : "deduct";
+    }
+
     try {
-        const updated = await db.order.update({
-            where: { id },
-            data: updateData,
-            include: {
-                cashier: { select: { id: true, name: true, role: true } },
-                orderItems: { include: { product: true } },
-            },
+        const updated = await db.$transaction(async (tx) => {
+            if (stockAdjustment === "return") {
+                for (const item of order.orderItems) {
+                    await tx.product.update({
+                        where: { id: item.productId },
+                        data: { stock: { increment: item.quantity } },
+                    });
+                }
+            } else if (stockAdjustment === "deduct") {
+                for (const item of order.orderItems) {
+                    const result = await tx.product.updateMany({
+                        where: { id: item.productId, stock: { gte: item.quantity } },
+                        data: { stock: { decrement: item.quantity } },
+                    });
+                    if (result.count === 0) {
+                        throw createError({
+                            statusCode: 409,
+                            statusMessage: "Stok tidak mencukupi untuk mengaktifkan kembali transaksi ini.",
+                        });
+                    }
+                }
+            }
+
+            return tx.order.update({
+                where: { id },
+                data: updateData,
+                include: {
+                    cashier: { select: { id: true, name: true, role: true } },
+                    orderItems: { include: { product: true } },
+                },
+            });
         });
 
         return {

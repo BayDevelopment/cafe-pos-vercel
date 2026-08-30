@@ -4,6 +4,8 @@ import { db } from "../../utils/db";
 import { requireOwner } from "../../utils/auth";
 import { OrderStatus } from "../../../generated/prisma/enums";
 
+const STOCK_RETURNED_STATUSES: OrderStatus[] = [OrderStatus.CANCELLED, OrderStatus.REFUNDED];
+
 export default defineEventHandler(async (event) => {
   // Hanya Pemilik yang boleh membatalkan/menghapus order.
   await requireOwner(event);
@@ -24,8 +26,11 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 404, statusMessage: "Pesanan yang akan dihapus tidak ditemukan" });
     }
 
-    if (existingOrder.status === OrderStatus.CANCELLED) {
-      throw createError({ statusCode: 400, statusMessage: "Pesanan ini sudah dibatalkan sebelumnya." });
+    if (STOCK_RETURNED_STATUSES.includes(existingOrder.status)) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: `Pesanan ini sudah ${existingOrder.status === OrderStatus.CANCELLED ? "dibatalkan" : "di-refund"} sebelumnya.`,
+      });
     }
 
     // Soft-delete: ubah status jadi CANCELLED (bukan hapus baris permanen) supaya

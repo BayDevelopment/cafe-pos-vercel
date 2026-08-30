@@ -1,7 +1,12 @@
 // server/api/karyawan/index.ts
-import { defineEventHandler, getMethod, getQuery, readMultipartFormData, createError } from "h3";
-import fs from "node:fs/promises";
-import path from "node:path";
+import {
+  defineEventHandler,
+  getMethod,
+  getQuery,
+  readMultipartFormData,
+  createError,
+} from "h3";
+import { put, del } from "@vercel/blob";
 import crypto from "node:crypto";
 import bcrypt from "bcrypt";
 import { Prisma } from "../../../generated/prisma/client";
@@ -15,7 +20,6 @@ const MAX_NAME_LEN = 200;
 const MAX_PHONE_LEN = 20;
 const MAX_ADDRESS_LEN = 300;
 const MAX_POSITION_LEN = 100;
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "employees");
 
 // ⚠️ SESUAIKAN dengan value enum EmployeeStatus di schema.prisma kamu
 const EMPLOYEE_STATUSES = ["AKTIF", "NONAKTIF"] as const;
@@ -71,8 +75,6 @@ async function ensurePhoneUnique(phone: string, excludeEmployeeId?: string) {
   }
 }
 
-
-
 function sanitizeEmployee(employee: any) {
   const { user, ...rest } = employee;
   return {
@@ -94,17 +96,27 @@ export default defineEventHandler(async (event) => {
     try {
       const query = getQuery(event);
       const page = Math.max(1, Number(query.page) || 1);
-      const limit = Math.min(MAX_LIMIT, Math.max(1, Number(query.limit) || DEFAULT_LIMIT));
+      const limit = Math.min(
+        MAX_LIMIT,
+        Math.max(1, Number(query.limit) || DEFAULT_LIMIT),
+      );
       const skip = (page - 1) * limit;
 
-      const search = query.search ? String(query.search).trim().slice(0, 100) : "";
+      const search = query.search
+        ? String(query.search).trim().slice(0, 100)
+        : "";
 
       let status: EmployeeStatusValue | undefined;
-      if (typeof query.status === "string" && isValidEmployeeStatus(query.status)) {
+      if (
+        typeof query.status === "string" &&
+        isValidEmployeeStatus(query.status)
+      ) {
         status = query.status;
       }
 
-      const position = query.position ? String(query.position).trim().slice(0, MAX_POSITION_LEN) : "";
+      const position = query.position
+        ? String(query.position).trim().slice(0, MAX_POSITION_LEN)
+        : "";
 
       const where: Prisma.EmployeeWhereInput = {};
 
@@ -120,7 +132,8 @@ export default defineEventHandler(async (event) => {
       }
 
       if (status) where.status = status;
-      if (position) where.position = { contains: position, mode: "insensitive" };
+      if (position)
+        where.position = { contains: position, mode: "insensitive" };
 
       const [employees, totalItems] = await Promise.all([
         db.employee.findMany({
@@ -151,7 +164,10 @@ export default defineEventHandler(async (event) => {
     } catch (error: any) {
       if (error?.statusCode) throw error;
       console.error("Gagal mengambil data karyawan:", error);
-      throw createError({ statusCode: 500, message: "Gagal mengambil data karyawan." });
+      throw createError({
+        statusCode: 500,
+        message: "Gagal mengambil data karyawan.",
+      });
     }
   }
 
@@ -196,10 +212,16 @@ export default defineEventHandler(async (event) => {
 
     // --- VALIDASI ---
     if (!name) {
-      throw createError({ statusCode: 400, message: "Nama karyawan wajib diisi." });
+      throw createError({
+        statusCode: 400,
+        message: "Nama karyawan wajib diisi.",
+      });
     }
     if (name.length > MAX_NAME_LEN) {
-      throw createError({ statusCode: 400, message: `Nama tidak boleh melebihi ${MAX_NAME_LEN} karakter.` });
+      throw createError({
+        statusCode: 400,
+        message: `Nama tidak boleh melebihi ${MAX_NAME_LEN} karakter.`,
+      });
     }
 
     if (!email || !isValidEmail(email)) {
@@ -207,14 +229,23 @@ export default defineEventHandler(async (event) => {
     }
 
     if (!password || password.length < 6) {
-      throw createError({ statusCode: 400, message: "Password minimal 6 karakter." });
+      throw createError({
+        statusCode: 400,
+        message: "Password minimal 6 karakter.",
+      });
     }
 
     if (!phone) {
-      throw createError({ statusCode: 400, message: "Nomor telepon wajib diisi." });
+      throw createError({
+        statusCode: 400,
+        message: "Nomor telepon wajib diisi.",
+      });
     }
     if (phone.length > MAX_PHONE_LEN) {
-      throw createError({ statusCode: 400, message: `Nomor telepon tidak boleh melebihi ${MAX_PHONE_LEN} karakter.` });
+      throw createError({
+        statusCode: 400,
+        message: `Nomor telepon tidak boleh melebihi ${MAX_PHONE_LEN} karakter.`,
+      });
     }
     await ensurePhoneUnique(phone);
 
@@ -225,25 +256,37 @@ export default defineEventHandler(async (event) => {
     if (shopSettings?.phone && shopSettings.phone === phone) {
       throw createError({
         statusCode: 409,
-        message: "Nomor telepon ini sudah digunakan sebagai nomor telepon toko.",
+        message:
+          "Nomor telepon ini sudah digunakan sebagai nomor telepon toko.",
       });
     }
 
     if (address.length > MAX_ADDRESS_LEN) {
-      throw createError({ statusCode: 400, message: `Alamat tidak boleh melebihi ${MAX_ADDRESS_LEN} karakter.` });
+      throw createError({
+        statusCode: 400,
+        message: `Alamat tidak boleh melebihi ${MAX_ADDRESS_LEN} karakter.`,
+      });
     }
 
     if (position.length > MAX_POSITION_LEN) {
-      throw createError({ statusCode: 400, message: `Jabatan tidak boleh melebihi ${MAX_POSITION_LEN} karakter.` });
+      throw createError({
+        statusCode: 400,
+        message: `Jabatan tidak boleh melebihi ${MAX_POSITION_LEN} karakter.`,
+      });
     }
 
-    const status: EmployeeStatusValue = isValidEmployeeStatus(statusRaw) ? statusRaw : "AKTIF";
+    const status: EmployeeStatusValue = isValidEmployeeStatus(statusRaw)
+      ? statusRaw
+      : "AKTIF";
 
     let birthDate: Date | null = null;
     if (birthDateRaw) {
       const parsed = new Date(birthDateRaw);
       if (Number.isNaN(parsed.getTime())) {
-        throw createError({ statusCode: 400, message: "Format tanggal lahir tidak valid." });
+        throw createError({
+          statusCode: 400,
+          message: "Format tanggal lahir tidak valid.",
+        });
       }
       birthDate = parsed;
     }
@@ -252,18 +295,23 @@ export default defineEventHandler(async (event) => {
     if (joinDateRaw) {
       const parsed = new Date(joinDateRaw);
       if (Number.isNaN(parsed.getTime())) {
-        throw createError({ statusCode: 400, message: "Format tanggal bergabung tidak valid." });
+        throw createError({
+          statusCode: 400,
+          message: "Format tanggal bergabung tidak valid.",
+        });
       }
       joinDate = parsed;
     }
 
-    // --- UPLOAD FOTO (opsional) ---
     let photoPath: string | null = null;
-    let savedFilePath: string | null = null;
+    let savedBlobUrl: string | null = null;
 
     if (uploadedFile) {
       if (uploadedFile.data.length > MAX_PHOTO_SIZE) {
-        throw createError({ statusCode: 400, message: "Ukuran foto terlalu besar. Maksimal 1 MB." });
+        throw createError({
+          statusCode: 400,
+          message: "Ukuran foto terlalu besar. Maksimal 1 MB.",
+        });
       }
 
       const detectedMime = getMimeTypeFromBuffer(uploadedFile.data);
@@ -271,23 +319,31 @@ export default defineEventHandler(async (event) => {
       if (!detectedMime || !allowedMimes.includes(detectedMime)) {
         throw createError({
           statusCode: 400,
-          message: "File yang diunggah bukan gambar valid (Hanya PNG & JPG/JPEG asli yang diizinkan).",
+          message:
+            "File yang diunggah bukan gambar valid (Hanya PNG & JPG/JPEG asli yang diizinkan).",
         });
       }
 
       const safeExtension = detectedMime === "image/png" ? ".png" : ".jpg";
-      const randomFileName = `${Date.now()}-${crypto.randomBytes(8).toString("hex")}${safeExtension}`;
+      const randomFileName = `employee-${Date.now()}-${crypto.randomBytes(8).toString("hex")}${safeExtension}`;
 
-      await fs.mkdir(UPLOAD_DIR, { recursive: true });
-      const fullPath = path.join(UPLOAD_DIR, randomFileName);
+      const blob = await put(randomFileName, uploadedFile.data, {
+        access: "public",
+        contentType: detectedMime,
+        addRandomSuffix: false,
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      });
 
-      await fs.writeFile(fullPath, uploadedFile.data);
-      savedFilePath = fullPath;
-      photoPath = `/uploads/employees/${randomFileName}`;
+      savedBlobUrl = blob.url;
+      photoPath = blob.url; // langsung URL publik, tidak perlu proxy endpoint
     }
 
     const cleanupUploadedFile = async () => {
-      if (savedFilePath) await fs.unlink(savedFilePath).catch(() => { });
+      if (savedBlobUrl) {
+        await del(savedBlobUrl, {
+          token: process.env.BLOB_READ_WRITE_TOKEN,
+        }).catch(() => {});
+      }
     };
 
     try {
@@ -340,11 +396,17 @@ export default defineEventHandler(async (event) => {
             ? error.meta?.target.join(", ")
             : String(error.meta?.target ?? "");
           const message = target.includes("phone")
+            ? "Nomor telepon sudah digunakan oleh karyawan lain."
+            : `Data sudah terdaftar (${target || "email/kode karyawan"}).`;
+          throw createError({ statusCode: 409, message });
         }
       }
 
       console.error("Gagal menambah karyawan:", error);
-      throw createError({ statusCode: 500, message: "Gagal menambah karyawan. Silakan coba lagi." });
+      throw createError({
+        statusCode: 500,
+        message: "Gagal menambah karyawan. Silakan coba lagi.",
+      });
     }
   }
 
