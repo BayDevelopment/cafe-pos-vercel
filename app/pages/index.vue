@@ -1,11 +1,11 @@
 <!-- app/pages/index.vue -->
 <template>
-  <div class="stage min-h-screen relative overflow-hidden">
+  <div class="stage min-h-screen relative overflow-x-hidden">
     <!-- TOAST ALERT -->
     <Transition name="slide-fade">
       <div
         v-if="showAlert"
-        class="fixed top-5 right-5 z-50 flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border mono text-xs max-w-[calc(100%-2.5rem)]"
+        class="fixed top-3 right-3 sm:top-5 sm:right-5 z-50 flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border mono text-xs max-w-[calc(100%-1.5rem)] sm:max-w-[calc(100%-2.5rem)]"
         :class="
           alertType === 'success'
             ? 'bg-[#2b1b12] text-[#faf6ee] border-[#b8763c]'
@@ -20,22 +20,24 @@
     </Transition>
 
     <div
-      class="absolute -top-32 -left-24 w-[26rem] h-[26rem] rounded-full pointer-events-none glow"
+      class="absolute -top-32 -left-24 w-64 h-64 sm:w-[26rem] sm:h-[26rem] rounded-full pointer-events-none glow"
     ></div>
     <div
-      class="absolute -bottom-32 -right-24 w-[26rem] h-[26rem] rounded-full pointer-events-none glow"
+      class="absolute -bottom-32 -right-24 w-64 h-64 sm:w-[26rem] sm:h-[26rem] rounded-full pointer-events-none glow"
     ></div>
 
-    <div class="relative z-10 max-w-7xl mx-auto p-5 md:p-12 space-y-8">
+    <div
+      class="relative z-10 max-w-7xl mx-auto p-4 sm:p-5 md:p-8 lg:p-12 space-y-6 sm:space-y-8"
+    >
       <!-- HEADER UTAMA -->
       <div class="ticket-wrap">
         <div class="spike-hole" aria-hidden="true"></div>
-        <div class="ticket p-6 md:p-8">
+        <div class="ticket p-5 sm:p-6 md:p-8">
           <div
-            class="flex flex-col md:flex-row justify-between items-start md:items-center gap-5"
+            class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sm:gap-5"
           >
             <div>
-              <div class="flex items-center gap-2 mb-3">
+              <div class="flex items-center gap-2 mb-3 flex-wrap">
                 <span
                   class="mono label-xs px-2.5 py-1 rounded-full bg-[#b8763c] text-[#faf6ee]"
                   >Guest Menu</span
@@ -44,8 +46,9 @@
               </div>
               <div class="flex items-center gap-2.5">
                 <svg
-                  width="28"
-                  height="28"
+                  width="26"
+                  height="26"
+                  class="sm:w-[28px] sm:h-[28px] shrink-0"
                   viewBox="0 0 34 34"
                   fill="none"
                   aria-hidden="true"
@@ -68,7 +71,7 @@
                   />
                 </svg>
                 <h1
-                  class="display text-2xl sm:text-3xl font-bold text-[#2b1b12] tracking-tight"
+                  class="display text-xl sm:text-2xl md:text-3xl font-bold text-[#2b1b12] tracking-tight"
                 >
                   KEDAI KOPI
                 </h1>
@@ -83,9 +86,9 @@
 
       <!-- STICKY SEARCH & CATEGORY NAVBAR -->
       <div
-        class="sticky top-0 z-30 -mx-5 px-5 py-3.5 bg-[#1c1410]/90 backdrop-blur-md border-y border-[#2b1b12]/60 shadow-xl transition-all"
+        class="sticky top-0 z-30 -mx-4 sm:-mx-5 px-4 sm:px-5 py-3 sm:py-3.5 bg-[#1c1410]/90 backdrop-blur-md border-y border-[#2b1b12]/60 shadow-xl transition-all"
       >
-        <div class="max-w-7xl mx-auto space-y-3">
+        <div class="max-w-7xl mx-auto space-y-2.5 sm:space-y-3">
           <input
             v-model="query"
             type="text"
@@ -96,7 +99,7 @@
 
           <!-- FILTER KATEGORI -->
           <div
-            class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar sm:flex-wrap sm:overflow-visible"
+            class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar md:flex-wrap md:overflow-visible"
           >
             <button
               type="button"
@@ -121,18 +124,18 @@
       </div>
 
       <!-- LAYOUT: KATALOG (KIRI) + KERANJANG (KANAN) -->
-      <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6 items-start">
         <!-- KATALOG PRODUK -->
-        <div class="xl:col-span-2 space-y-8">
+        <div class="lg:col-span-2 space-y-7 sm:space-y-8">
           <!-- SKELETON LOADER (RESPONSIVE) -->
           <div
             v-if="pending"
-            class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5"
+            class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 sm:gap-5"
           >
             <div
               v-for="n in 6"
               :key="n"
-              class="ticket-card p-5 skeleton-card"
+              class="ticket-card p-4 sm:p-5 skeleton-card"
               aria-hidden="true"
             >
               <div class="skeleton-line w-2/3 h-4 mb-3"></div>
@@ -142,17 +145,17 @@
           </div>
 
           <!-- ERROR STATE -->
-          <div v-else-if="error" class="ticket-card p-10 text-center">
+          <div v-else-if="error" class="ticket-card p-8 sm:p-10 text-center">
             <p class="mono text-xs text-[#9b3a2e]">
               Gagal memuat menu. Silakan muat ulang halaman.
             </p>
           </div>
 
           <!-- PRODUCT LIST -->
-          <div v-else class="space-y-8">
+          <div v-else class="space-y-7 sm:space-y-8">
             <div
               v-if="filteredGroups.length === 0"
-              class="ticket-card p-10 sm:p-12 text-center"
+              class="ticket-card p-8 sm:p-10 md:p-12 text-center"
             >
               <p class="mono text-xs text-[#8A7A68]">
                 {{
@@ -166,10 +169,12 @@
             <div
               v-for="group in filteredGroups"
               :key="group.name"
-              class="space-y-4"
+              class="space-y-3.5 sm:space-y-4"
             >
               <div class="flex items-center gap-3">
-                <h2 class="display text-lg font-bold text-[#faf6ee]">
+                <h2
+                  class="display text-base sm:text-lg font-bold text-[#faf6ee]"
+                >
                   {{ group.name }}
                 </h2>
                 <span class="mono label-xs text-[#8A7A68]"
@@ -177,9 +182,13 @@
                 >
               </div>
 
-              <!-- GRID PRODUK RESPONSIVE FINAL (Mobile: 1, Tablet: 2, Laptop/PC: 3) -->
+              <!-- GRID PRODUK RESPONSIVE FINAL
+                   HP kecil (<380px): 1 kolom
+                   HP besar / phablet: 2 kolom
+                   Tablet & laptop kecil (md, lg saat sidebar tampil): 2-3 kolom
+                   Desktop/PC (xl ke atas): 3 kolom -->
               <div
-                class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5"
+                class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-3.5 sm:gap-5"
               >
                 <div
                   v-for="product in group.items"
@@ -205,13 +214,14 @@
 
                   <!-- GAMBAR PRODUK -->
                   <div
-                    class="h-28 sm:h-32 bg-[#f4eee3] flex items-center justify-center border-b border-[#2b1b12]/10"
+                    class="h-24 sm:h-32 bg-[#f4eee3] flex items-center justify-center border-b border-[#2b1b12]/10"
                   >
                     <img
                       v-if="product.image"
                       :src="product.image"
                       :alt="product.name"
                       class="w-full h-full object-cover"
+                      loading="lazy"
                     />
                     <svg
                       v-else
@@ -235,17 +245,21 @@
                   </div>
 
                   <!-- INFO PRODUK -->
-                  <div class="p-4 flex flex-col justify-between flex-1">
+                  <div
+                    class="p-3.5 sm:p-4 flex flex-col justify-between flex-1"
+                  >
                     <div>
                       <h3
-                        class="display text-sm font-bold text-[#2b1b12] leading-snug mb-2"
+                        class="display text-xs sm:text-sm font-bold text-[#2b1b12] leading-snug mb-2"
                       >
                         {{ product.name }}
                       </h3>
 
                       <!-- HARGA -->
                       <div class="flex items-baseline gap-2 flex-wrap">
-                        <p class="display text-base font-bold text-[#b8763c]">
+                        <p
+                          class="display text-sm sm:text-base font-bold text-[#b8763c]"
+                        >
                           Rp
                           {{ getFinalPrice(product).toLocaleString("id-ID") }}
                         </p>
@@ -260,7 +274,7 @@
 
                     <!-- TOMBOL TAMBAH -->
                     <div
-                      class="mt-4 pt-3 border-t border-[#2b1b12]/10 flex items-center justify-between gap-2"
+                      class="mt-3.5 sm:mt-4 pt-3 border-t border-[#2b1b12]/10 flex items-center justify-between gap-2"
                     >
                       <span
                         class="mono text-[0.65rem]"
@@ -298,7 +312,7 @@
         </div>
 
         <!-- SIDEBAR KERANJANG / STATUS PESANAN -->
-        <div class="xl:col-span-1 xl:sticky xl:top-24">
+        <div class="lg:col-span-1 lg:sticky lg:top-24">
           <div class="ticket-card p-4 sm:p-5 md:p-6 space-y-5">
             <!-- MODE: SEDANG BELANJA -->
             <template v-if="!activeOrderId">
@@ -317,7 +331,10 @@
                 </p>
               </div>
 
-              <div v-else class="space-y-3 max-h-80 overflow-y-auto pr-1">
+              <div
+                v-else
+                class="space-y-3 max-h-72 sm:max-h-80 overflow-y-auto pr-1"
+              >
                 <div
                   v-for="item in cart"
                   :key="item.productId"
@@ -415,7 +432,9 @@
               </div>
 
               <div v-if="orderStatus" class="space-y-3">
-                <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
+                <div
+                  class="space-y-2 max-h-56 sm:max-h-64 overflow-y-auto pr-1"
+                >
                   <div
                     v-for="item in orderStatus.items"
                     :key="item.id"
@@ -865,14 +884,23 @@ onBeforeUnmount(() => {
 .spike-hole {
   position: absolute;
   top: -11px;
-  left: 40px;
-  width: 22px;
-  height: 22px;
+  left: 24px;
+  width: 20px;
+  height: 20px;
   border-radius: 999px;
   background: #1c1410;
   border: 1.5px solid #b8763c;
   box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.6);
   z-index: 20;
+}
+
+@media (min-width: 640px) {
+  .spike-hole {
+    top: -11px;
+    left: 40px;
+    width: 22px;
+    height: 22px;
+  }
 }
 
 .ticket {
@@ -900,6 +928,14 @@ onBeforeUnmount(() => {
   font-size: 0.85rem;
   font-family: "IBM Plex Mono", monospace;
   color: #2b1b12;
+  /* mencegah zoom otomatis di iOS saat fokus input */
+  font-size: max(0.85rem, 16px);
+}
+
+@media (min-width: 640px) {
+  .field {
+    font-size: 0.85rem;
+  }
 }
 
 .field::placeholder {
@@ -917,10 +953,11 @@ onBeforeUnmount(() => {
   font-size: 0.65rem;
   font-weight: 600;
   letter-spacing: 0.08em;
-  padding: 0.4rem 0.75rem;
+  padding: 0.45rem 0.75rem;
   border-radius: 999px;
   cursor: pointer;
   transition: background 0.15s ease;
+  min-height: 30px;
 }
 
 .btn-add:hover:not(:disabled) {
@@ -938,10 +975,11 @@ onBeforeUnmount(() => {
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
-  padding: 0.75rem 1rem;
+  padding: 0.85rem 1rem;
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.15s ease;
+  min-height: 44px;
 }
 
 .btn-submit:hover:not(:disabled) {
@@ -954,8 +992,8 @@ onBeforeUnmount(() => {
 }
 
 .qty-btn {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -963,7 +1001,7 @@ onBeforeUnmount(() => {
   border-radius: 6px;
   background: #f4eee3;
   font-family: "IBM Plex Mono", monospace;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: #2b1b12;
   cursor: pointer;
 }
@@ -1007,6 +1045,7 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(43, 27, 18, 0.12);
   transition: all 0.15s ease;
   cursor: pointer;
+  min-height: 32px;
 }
 
 .category-pill:hover {
