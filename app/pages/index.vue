@@ -26,9 +26,7 @@
       class="absolute -bottom-32 -right-24 w-64 h-64 sm:w-[26rem] sm:h-[26rem] rounded-full pointer-events-none glow"
     ></div>
 
-    <div
-      class="relative z-10 max-w-7xl mx-auto p-4 sm:p-5 md:p-8 lg:p-12 space-y-6 sm:space-y-8"
-    >
+    <div class="relative z-10 max-w-7xl mx-auto p-4 sm:p-5 md:p-8 lg:p-12 space-y-6 sm:space-y-8">
       <!-- HEADER UTAMA -->
       <div class="ticket-wrap">
         <div class="spike-hole" aria-hidden="true"></div>
@@ -152,9 +150,9 @@
           </div>
 
           <!-- PRODUCT LIST -->
-          <div v-else class="space-y-7 sm:space-y-8">
+          <div v-else class="space-y-4">
             <div
-              v-if="filteredGroups.length === 0"
+              v-if="filteredProducts.length === 0"
               class="ticket-card p-8 sm:p-10 md:p-12 text-center"
             >
               <p class="mono text-xs text-[#8A7A68]">
@@ -166,144 +164,138 @@
               </p>
             </div>
 
-            <div
-              v-for="group in filteredGroups"
-              :key="group.name"
-              class="space-y-3.5 sm:space-y-4"
-            >
-              <div class="flex items-center gap-3">
-                <h2
-                  class="display text-base sm:text-lg font-bold text-[#faf6ee]"
-                >
-                  {{ group.name }}
-                </h2>
-                <span class="mono label-xs text-[#8A7A68]"
-                  >{{ group.items.length }} item</span
-                >
-              </div>
-
-              <!-- GRID PRODUK RESPONSIVE FINAL
-                   HP kecil (<380px): 1 kolom
-                   HP besar / phablet: 2 kolom
-                   Tablet & laptop kecil (md, lg saat sidebar tampil): 2-3 kolom
-                   Desktop/PC (xl ke atas): 3 kolom -->
-              <div
-                class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-3.5 sm:gap-5"
+            <div v-else class="flex items-center gap-3">
+              <span class="mono label-xs text-[#8A7A68]"
+                >{{ filteredProducts.length }} menu tersedia</span
               >
+            </div>
+
+            <!-- GRID PRODUK GABUNGAN (SEMUA KATEGORI JADI SATU GRID)
+                 HP kecil: 1 kolom
+                 HP besar / phablet & tablet: 2 kolom
+                 Laptop kecil / tablet lanskap (lg, saat sidebar tampil): 2 kolom
+                 Desktop/PC (xl ke atas): 3 kolom -->
+            <div
+              v-if="filteredProducts.length > 0"
+              class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-3.5 sm:gap-5"
+            >
+              <div
+                v-for="product in filteredProducts"
+                :key="product.id"
+                class="ticket-card overflow-hidden flex flex-col relative"
+                :class="{ 'opacity-60 grayscale-[0.4]': product.stock <= 0 }"
+              >
+                <!-- BADGE DISKON -->
                 <div
-                  v-for="product in group.items"
-                  :key="product.id"
-                  class="ticket-card overflow-hidden flex flex-col relative"
-                  :class="{ 'opacity-60 grayscale-[0.4]': product.stock <= 0 }"
+                  v-if="getDiscountPercent(product) > 0 && product.stock > 0"
+                  class="absolute top-2 left-2 z-10 mono label-xs px-2 py-0.5 rounded-full bg-[#9b3a2e] text-[#faf6ee] shadow font-bold tracking-wider"
                 >
-                  <!-- BADGE DISKON -->
-                  <div
-                    v-if="getDiscountPercent(product) > 0 && product.stock > 0"
-                    class="absolute top-2 left-2 z-10 mono label-xs px-2 py-0.5 rounded-full bg-[#9b3a2e] text-[#faf6ee] shadow font-bold tracking-wider"
-                  >
-                    {{ getDiscountPercent(product) }}% OFF
-                  </div>
+                  {{ getDiscountPercent(product) }}% OFF
+                </div>
 
-                  <!-- BADGE STOK HABIS -->
-                  <div
-                    v-if="product.stock <= 0"
-                    class="absolute top-2 right-2 z-10 mono label-xs px-2 py-0.5 rounded-full bg-[#9b3a2e] text-[#faf6ee]"
-                  >
-                    STOK HABIS
-                  </div>
+                <!-- BADGE STOK HABIS -->
+                <div
+                  v-if="product.stock <= 0"
+                  class="absolute top-2 right-2 z-10 mono label-xs px-2 py-0.5 rounded-full bg-[#9b3a2e] text-[#faf6ee]"
+                >
+                  STOK HABIS
+                </div>
 
-                  <!-- GAMBAR PRODUK -->
-                  <div
-                    class="h-24 sm:h-32 bg-[#f4eee3] flex items-center justify-center border-b border-[#2b1b12]/10"
+                <!-- GAMBAR PRODUK -->
+                <div
+                  class="h-24 sm:h-32 bg-[#f4eee3] flex items-center justify-center border-b border-[#2b1b12]/10"
+                >
+                  <img
+                    v-if="product.image"
+                    :src="product.image"
+                    :alt="product.name"
+                    class="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                  <svg
+                    v-else
+                    width="30"
+                    height="30"
+                    viewBox="0 0 34 34"
+                    fill="none"
+                    aria-hidden="true"
                   >
-                    <img
-                      v-if="product.image"
-                      :src="product.image"
-                      :alt="product.name"
-                      class="w-full h-full object-cover"
-                      loading="lazy"
+                    <path
+                      d="M6 13h18v7a7 7 0 0 1-7 7h-4a7 7 0 0 1-7-7v-7Z"
+                      stroke="#C9B8A2"
+                      stroke-width="1.6"
                     />
-                    <svg
-                      v-else
-                      width="30"
-                      height="30"
-                      viewBox="0 0 34 34"
-                      fill="none"
-                      aria-hidden="true"
+                    <path
+                      d="M24 15h2.5a3.5 3.5 0 0 1 0 7H24"
+                      stroke="#C9B8A2"
+                      stroke-width="1.6"
+                    />
+                  </svg>
+                </div>
+
+                <!-- INFO PRODUK -->
+                <div class="p-3.5 sm:p-4 flex flex-col justify-between flex-1">
+                  <div>
+                    <!-- LABEL KATEGORI KECIL -->
+                    <span
+                      v-if="product.category?.name"
+                      class="mono text-[0.6rem] font-semibold tracking-wider uppercase text-[#b8763c] block mb-1"
                     >
-                      <path
-                        d="M6 13h18v7a7 7 0 0 1-7 7h-4a7 7 0 0 1-7-7v-7Z"
-                        stroke="#C9B8A2"
-                        stroke-width="1.6"
-                      />
-                      <path
-                        d="M24 15h2.5a3.5 3.5 0 0 1 0 7H24"
-                        stroke="#C9B8A2"
-                        stroke-width="1.6"
-                      />
-                    </svg>
+                      {{ product.category.name }}
+                    </span>
+
+                    <h3
+                      class="display text-xs sm:text-sm font-bold text-[#2b1b12] leading-snug mb-2"
+                    >
+                      {{ product.name }}
+                    </h3>
+
+                    <!-- HARGA -->
+                    <div class="flex items-baseline gap-2 flex-wrap">
+                      <p class="display text-sm sm:text-base font-bold text-[#b8763c]">
+                        Rp
+                        {{ getFinalPrice(product).toLocaleString("id-ID") }}
+                      </p>
+                      <p
+                        v-if="Number(product.discount) > 0"
+                        class="mono text-xs line-through text-[#8A7A68]"
+                      >
+                        Rp {{ Number(product.price).toLocaleString("id-ID") }}
+                      </p>
+                    </div>
                   </div>
 
-                  <!-- INFO PRODUK -->
+                  <!-- TOMBOL TAMBAH -->
                   <div
-                    class="p-3.5 sm:p-4 flex flex-col justify-between flex-1"
+                    class="mt-3.5 sm:mt-4 pt-3 border-t border-[#2b1b12]/10 flex items-center justify-between gap-2"
                   >
-                    <div>
-                      <h3
-                        class="display text-xs sm:text-sm font-bold text-[#2b1b12] leading-snug mb-2"
-                      >
-                        {{ product.name }}
-                      </h3>
-
-                      <!-- HARGA -->
-                      <div class="flex items-baseline gap-2 flex-wrap">
-                        <p
-                          class="display text-sm sm:text-base font-bold text-[#b8763c]"
-                        >
-                          Rp
-                          {{ getFinalPrice(product).toLocaleString("id-ID") }}
-                        </p>
-                        <p
-                          v-if="Number(product.discount) > 0"
-                          class="mono text-xs line-through text-[#8A7A68]"
-                        >
-                          Rp {{ Number(product.price).toLocaleString("id-ID") }}
-                        </p>
-                      </div>
-                    </div>
-
-                    <!-- TOMBOL TAMBAH -->
-                    <div
-                      class="mt-3.5 sm:mt-4 pt-3 border-t border-[#2b1b12]/10 flex items-center justify-between gap-2"
+                    <span
+                      class="mono text-[0.65rem]"
+                      :class="
+                        product.stock <= 0
+                          ? 'text-[#9b3a2e] font-semibold'
+                          : 'text-[#8A7A68]'
+                      "
                     >
-                      <span
-                        class="mono text-[0.65rem]"
-                        :class="
-                          product.stock <= 0
-                            ? 'text-[#9b3a2e] font-semibold'
-                            : 'text-[#8A7A68]'
-                        "
-                      >
-                        {{
-                          product.stock <= 0
-                            ? "HABIS"
-                            : `STOK: ${product.stock}`
-                        }}
-                      </span>
+                      {{
+                        product.stock <= 0
+                          ? "HABIS"
+                          : `STOK: ${product.stock}`
+                      }}
+                    </span>
 
-                      <button
-                        @click="addToCart(product)"
-                        :disabled="
-                          product.stock <= 0 ||
-                          cartQtyOf(product.id) >= product.stock
-                        "
-                        class="btn-add mono inline-flex items-center gap-1.5 shrink-0"
-                      >
-                        <span>{{
-                          product.stock <= 0 ? "HABIS" : "+ TAMBAH"
-                        }}</span>
-                      </button>
-                    </div>
+                    <button
+                      @click="addToCart(product)"
+                      :disabled="
+                        product.stock <= 0 ||
+                        cartQtyOf(product.id) >= product.stock
+                      "
+                      class="btn-add mono inline-flex items-center gap-1.5 shrink-0"
+                    >
+                      <span>{{
+                        product.stock <= 0 ? "HABIS" : "+ TAMBAH"
+                      }}</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -331,10 +323,7 @@
                 </p>
               </div>
 
-              <div
-                v-else
-                class="space-y-3 max-h-72 sm:max-h-80 overflow-y-auto pr-1"
-              >
+              <div v-else class="space-y-3 max-h-72 sm:max-h-80 overflow-y-auto pr-1">
                 <div
                   v-for="item in cart"
                   :key="item.productId"
@@ -432,9 +421,7 @@
               </div>
 
               <div v-if="orderStatus" class="space-y-3">
-                <div
-                  class="space-y-2 max-h-56 sm:max-h-64 overflow-y-auto pr-1"
-                >
+                <div class="space-y-2 max-h-56 sm:max-h-64 overflow-y-auto pr-1">
                   <div
                     v-for="item in orderStatus.items"
                     :key="item.id"
@@ -581,7 +568,10 @@ const categories = computed(() => {
   return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
 });
 
-const filteredGroups = computed(() => {
+// Semua produk digabung jadi satu list (tidak dikelompokkan per kategori),
+// supaya kartu produk mengisi grid secara horizontal & tidak menyisakan
+// ruang kosong ketika satu kategori cuma punya sedikit item.
+const filteredProducts = computed(() => {
   const q = query.value.trim().toLowerCase();
 
   let filtered = products.value;
@@ -596,14 +586,7 @@ const filteredGroups = computed(() => {
     filtered = filtered.filter((p) => p.name.toLowerCase().includes(q));
   }
 
-  const map = new Map();
-  for (const product of filtered) {
-    const name = product.category?.name || "Lainnya";
-    if (!map.has(name)) map.set(name, []);
-    map.get(name).push(product);
-  }
-
-  return Array.from(map.entries()).map(([name, items]) => ({ name, items }));
+  return filtered;
 });
 
 // ================== TOAST ALERT ==================
