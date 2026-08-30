@@ -1,0 +1,219 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../generated/prisma"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ================= ENUMS =================
+
+enum Role {
+  PEMILIK
+  KASIR
+}
+
+enum EmployeeStatus {
+  AKTIF
+  NONAKTIF
+}
+
+enum PaymentMethod {
+  CASH
+  QRIS
+  DEBIT
+  KREDIT
+  TRANSFER
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+  REFUNDED
+}
+
+// ================= AUTH & USER =================
+
+model User {
+  id       String  @id @default(uuid())
+  email    String  @unique
+  password String
+  name     String
+  role     Role    @default(KASIR)
+  isActive Boolean @default(true)
+
+  emailVerifiedAt   DateTime?
+  passwordChangedAt DateTime?
+  employee          Employee?
+  orders            Order[]
+
+  verificationTokens  VerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Token untuk verifikasi email — expired otomatis, sekali pakai
+model VerificationToken {
+  id        String    @id @default(uuid())
+  token     String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// Token untuk lupa password — terpisah dari verifikasi email, umur lebih pendek
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  token     String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// ================= DATA KARYAWAN =================
+
+model Employee {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  employeeCode String         @unique // NIP internal, mis. "KRY-0001"
+  phone        String         @unique
+  address      String?
+  birthDate    DateTime?
+  photo        String?
+  position     String? // jabatan, mis. "Barista", "Kasir Shift Pagi"
+  joinDate     DateTime       @default(now())
+  status       EmployeeStatus @default(AKTIF)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ================= PRODUK =================
+
+model Category {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  products Product[]
+}
+
+model Product {
+  id                Int                @id @default(autoincrement())
+  sku               String?            @unique
+  name              String
+  price             Decimal            @db.Decimal(10, 2)
+  discount          Decimal            @default(0) @db.Decimal(10, 2)
+  costPrice         Decimal?           @db.Decimal(10, 2)
+  stock             Int                @default(0)
+  image             String?
+  isActive          Boolean            @default(true)
+  categoryId        Int
+  category          Category           @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  orderItems        OrderItem[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  orderRequestItems OrderRequestItem[]
+
+  @@index([categoryId])
+}
+
+// ================= TRANSAKSI =================
+
+model Order {
+  id            Int           @id @default(autoincrement())
+  customerName  String?
+  totalAmount   Decimal       @db.Decimal(10, 2)
+  discount      Decimal       @default(0) @db.Decimal(10, 2)
+  note          String?
+  paymentMethod PaymentMethod @default(CASH)
+  status        OrderStatus   @default(PAID)
+  cashierId     String
+  cashier       User          @relation(fields: [cashierId], references: [id], onDelete: Restrict)
+  orderItems    OrderItem[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([createdAt])
+  @@index([cashierId])
+  @@index([status])
+  @@index([status, createdAt])
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity  Int
+  price     Decimal @db.Decimal(10, 2)
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model OrderRequest {
+  id           Int                @id @default(autoincrement())
+  sessionId    String
+  customerName String?
+  note         String?
+  status       OrderRequestStatus @default(PENDING)
+  items        OrderRequestItem[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([sessionId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model OrderRequestItem {
+  id             Int          @id @default(autoincrement())
+  orderRequestId Int
+  orderRequest   OrderRequest @relation(fields: [orderRequestId], references: [id], onDelete: Cascade)
+  productId      Int
+  product        Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productName    String
+  price          Decimal      @db.Decimal(10, 2)
+  quantity       Int
+
+  @@index([orderRequestId])
+  @@index([productId])
+}
+
+enum OrderRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model ShopSettings {
+  id          String   @id @default(uuid())
+  logoUrl     String?  @map("logo_url")
+  shopName    String   @map("shop_name")
+  description String?
+  address     String?
+  phone       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("shop_settings")
+}
