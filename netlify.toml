@@ -1,6 +1,0 @@
-[functions]
-  included_files = [
-    "node_modules/.prisma/**",
-    "node_modules/@prisma/client/runtime/*.wasm",
-    "generated/prisma/**",
-  ]
