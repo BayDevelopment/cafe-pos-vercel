@@ -14,9 +14,6 @@ export default defineNuxtConfig({
   ],
   nitro: {
     preset: 'vercel',
-    externals: {
-      external: ['@prisma/client', '.prisma/client'],
-    },
     rollupConfig: {
       output: {
         intro: `
