@@ -12,8 +12,14 @@ export default defineNuxtConfig({
     "@nuxtjs/supabase",
     "nuxt-lucide-icons",
   ],
+  nitro: {
+    preset: 'vercel',
+    externals: {
+      inline: [],
+      external: ['@prisma/client', '.prisma/client'],
+    },
+  },
   supabase: {
     redirect: false,
   },
-  // Hapus blok nitro sepenuhnya
 })
